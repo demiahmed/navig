@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <link rel="stylesheet" href="d3.css">
+</head>
+
+<body>
+  <div class="buttonbox">
+  <button id="categories">By Genre</button>
+  <button id="showAll">Show All</button>
+  </div>
+  <div class="chart">
+  </div>
+
+  <defs>
+    <linearGradient id="neonGradient" x1="0%" y1="0%" x2="100%" y2="100%"> 
+      <stop offset="0%" stop-color="#F433FF" stop-opacity="1"></stop>
+      <stop offset="100%" stop-color="#3DFF33" stop-opacity="1"></stop>
+      </linearGradient>
+   </defs>
+  
+  <script>
+
+  
+    
+    (function() {
+      var width = window.screen.width,
+          height = window.screen.height;
+
+      var svg = d3.select(".chart")
+      	.append("svg")
+      	.append("g")
+      	.attr("transform", "translate(0,0)");
+    
+
+
+      var defs = svg.append("defs");
+
+      defs.append("pattern")
+        .attr("id", "student")
+        .attr("height", "100%")
+        .attr("width", "100%")
+        .attr("patternContentUnits", "objectBoundingBox")
+        .append("image")
+        .attr("height", "1")
+        .attr("width", "1")
+        .attr("preserveAspectRatio", "none")
+        .attr("xmlns:xlink", "https://www.w3.org/1999/xlink")
+        .attr("xlink:href", "zaha.jpg")
+        
+
+      var radiusScale = d3.scaleSqrt().domain([1, 300]).range([11, 80])
+
+      var forceXSeparate = d3.forceX(function(d) {
+            if (d.cat === 'GIS') {
+            return window.screen.width/5
+            } else if (d.cat === 'Futurism') {
+            return 2*(window.screen.width/5)
+            }
+            else if (d.cat === 'Sustainability') {
+              return 3*(window.screen.width/5)
+            }
+            else {
+              return 4*(window.screen.width/5)
+            }
+          }).strength(0.25)
+
+        var forceYSeparate = d3.forceY(function(d) {
+          if (d.cat === 'GIS') {
+          return window.screen.height/5
+          } else if (d.cat === 'Futurism') {
+          return 2*(window.screen.height/5)
+          }
+          else if (d.cat === 'Sustainability') {
+            return 3*(window.screen.height/5)
+          }
+          else {
+            return 4*(window.screen.height/5)
+          }
+        }).strength(0.25)
+      
+      var forceXCombine = d3.forceX(window.screen.width / 2).strength(0.25)
+
+      var forceYCombine = d3.forceY(window.screen.height / 2).strength(0.25)
+      
+      var forceCollide = d3.forceCollide(function(d) {
+        return radiusScale(d.radius) + 1 
+      })
+      
+      //simulation forces the circles to go
+      //and interact
+
+      if (window.screen.width > 900) {
+        console.log(window.screen.width)
+      var simulation = d3.forceSimulation()
+      	.force("x", forceXSeparate)
+      	.force("y", d3.forceY(height/2).strength(0.05))
+      	.force("collide", forceCollide.iterations(50))
+      
+      }
+
+      else {
+        console.log(window.screen.width)
+        var simulation = d3.forceSimulation()
+      	.force("x", d3.forceX(height/2).strength(0.05))
+      	.force("y", forceYSeparate)
+      	.force("collide", forceCollide.iterations(50))
+
+      }
+
+        function dragstarted(d) {
+            if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+        
+        function dragged(d) {
+            d.fx = d3.event.x;
+            d.fy = d3.event.y;
+        }
+        
+        function dragended(d) {
+            if (!d3.event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        } 
+
+      d3.queue()
+      	.defer(d3.csv, "students.csv")
+      	.await(ready)
+      
+      function ready (error, datapoints) {
+        
+        var circles = svg.selectAll(".artist")
+        	.data(datapoints)
+        	.enter().append("circle")
+        	.attr("class", "artist")
+        	.attr("r", function(d) {
+            return radiusScale(d.radius)
+          })
+        	.attr("fill", function(d) {
+            return "url(#" + d.name.toLowerCase().replace(/ /g, "-") + ")"
+          })
+        	.on('click', function(d) {
+            console.log(d)
+          })
+          .call(d3.drag()
+              .on("start", dragstarted)
+              .on("drag", dragged)
+              .on("end", dragended));  
+        
+
+        defs.selectAll(".student-pattern")
+          .data(datapoints)
+          .enter().append("pattern")
+          .attr("id", function(d) { 
+            return d.name.toLowerCase().replace(/ /g, "-")
+          })
+          .attr("height", "100%")
+          .attr("width", "100%")
+          .attr("patternContentUnits", "objectBoundingBox")
+          .append("image")
+          .attr("height", "1")
+          .attr("width", "1")
+          .attr("preserveAspectRatio", "none")
+          .attr("xmlns:xlink", "https://www.w3.org/1999/xlink")
+          .attr("xlink:href", function(d) {
+            return d.image_path
+          });
+
+          if (window.screen.width > 900) {
+
+            d3.select('#categories').on('click', function() {
+            simulation
+              .force("x", forceXSeparate)
+              .alphaTarget(0.3)
+              .restart()
+          })
+
+          d3.select('#showAll').on('click', function() {
+          simulation
+          	.force("x", forceXCombine)
+          	.alphaTarget(0.3)
+          	.restart()
+          })
+
+          }
+
+          else {
+
+            d3.select('#categories').on('click', function() {
+            simulation
+              .force("y", forceYSeparate)
+              .alphaTarget(0.3)
+              .restart()
+          })
+
+          d3.select('#showAll').on('click', function() {
+          simulation
+          	.force("y", forceYCombine)
+          	.alphaTarget(0.3)
+          	.restart()
+          })
+
+          }
+        
+
+        
+        simulation.nodes(datapoints)
+        	.on('tick', ticked)
+        
+        function ticked() {
+          circles
+          	.attr("cx", function(d) {
+            return d.x
+          })
+          	.attr("cy", function(d) {
+            return d.y
+          })
+   
+        }      
+      }
+
+
+    })();
+
+
+
+  </script>
+</body>
